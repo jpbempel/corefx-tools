@@ -782,6 +782,7 @@ DiscoverCommands()
 	lttngcmd=`GetCommandFullPath "lttng"`
 	zipcmd=`GetCommandFullPath "zip"`
 	unzipcmd=`GetCommandFullPath "unzip"`
+	targzcmd=`GetCommandFullPath "tar"`
 }
 
 GetCommandFullPath()
@@ -1084,17 +1085,20 @@ EnsurePrereqsInstalled()
 	# If zip or unzip are not installing, then bail.
 	if [ "$zipcmd" == "" ] || [ "$unzipcmd" == "" ]
 	then
-		RedText
-		echo "Zip and unzip are not installed."
-		if [ "$(SupportsAutoInstall)" == "1" ]
+		if [ "$targzcmd" == "" ]
 		then
-			echo "Run ./perfcollect install"
-			echo "or install zip and unzip manually."
-		else
-			echo "Install zip and unzip to proceed."
+			RedText
+			echo "Zip and unzip are not installed."
+			if [ "$(SupportsAutoInstall)" == "1" ]
+			then
+				echo "Run ./perfcollect install"
+				echo "or install zip and unzip manually."
+			else
+				echo "Install zip and unzip to proceed."
+			fi
+			ResetText
+			exit 1
 		fi
-		ResetText
-		exit 1
 	fi
 }
 
@@ -1553,9 +1557,19 @@ ProcessCollectedData()
 	RunSilent "mv $logFile $directoryName/perfcollect.log"
 
 	# Compress the data.
-	local archiveSuffix=".zip"
-	local archiveName=$directoryName$archiveSuffix
-	RunSilent "$zipcmd -r $archiveName $directoryName"
+	if [ "$zipcmd" != "" ]
+	then
+		local archiveSuffix=".zip"
+		local archiveName=$directoryName$archiveSuffix
+		RunSilent "$zipcmd -r $archiveName $directoryName"
+	fi
+	if [ "$targzcmd" != "" ]
+	then
+		local archiveSuffix=".tar.gz"
+		local archiveName=$directoryName$archiveSuffix
+		RunSilent "$targzcmd czvf $archiveName $directoryName"		
+		echo "Compressed with tar/gz, on windows need to be recompressed using zip to view with PerfView!"
+	fi
 
 	# Move back to the original directory.
 	popd > /dev/null
@@ -1700,8 +1714,11 @@ BuildPerfRecordArgs()
 
 DoCollect()
 {
-	# Ensure the script is run as root.
-	EnsureRoot
+	if [ "$gcOnly" != "1" ]
+	then
+		# Ensure the script is run as root.
+		EnsureRoot
+	fi
 
 	# Build collection args.
 	# Places the resulting args in $collectionArgs
