@@ -1714,7 +1714,7 @@ BuildPerfRecordArgs()
 
 DoCollect()
 {
-	if [ "$gcOnly" != "1" ]
+	if [ "$gcOnly" != "1" -a "$gcCollectOnly" != "1" ]
 	then
 		# Ensure the script is run as root.
 		EnsureRoot
